@@ -151,34 +151,34 @@ public class AlephiumJobManager : JobManagerBase<AlephiumJob>
                                                     {
 
                                                         jobSize = ReadBigEndianUInt32(reader);
-                                                        logger.Debug(() => $"Parsing {jobSize} job(s) :D");
+                                                        logger.Trace(() => $"Parsing {jobSize} job(s) :D");
 
                                                         alephiumBlockTemplate = new AlephiumBlockTemplate[jobSize];
 
                                                         for (int index = 0; index < jobSize; index++)
                                                         {
-                                                            logger.Debug(() => $"Job ({index + 1})");
+                                                            logger.Trace(() => $"Job ({index + 1})");
                                                             fromGroup = (int)ReadBigEndianUInt32(reader);
                                                             toGroup = (int)ReadBigEndianUInt32(reader);
-                                                            logger.Debug(() => $"fromGroup: {fromGroup} - toGroup: {toGroup}");
+                                                            logger.Trace(() => $"fromGroup: {fromGroup} - toGroup: {toGroup}");
 
                                                             chainInfo = await rpc.GetBlockflowChainInfoAsync(fromGroup, toGroup, cts.Token);
-                                                            logger.Debug(() => $"Height: {chainInfo?.CurrentHeight + 1}");
+                                                            logger.Trace(() => $"Height: {chainInfo?.CurrentHeight + 1}");
 
                                                             headerBlobLength = ReadBigEndianUInt32(reader);
-                                                            logger.Debug(() => $"headerBlobLength: {headerBlobLength}");
+                                                            logger.Trace(() => $"headerBlobLength: {headerBlobLength}");
                                                             headerBlob = reader.ReadBytes((int)headerBlobLength);
-                                                            logger.Debug(() => $"headerBlob: {headerBlob.ToHexString()}");
+                                                            logger.Trace(() => $"headerBlob: {headerBlob.ToHexString()}");
 
                                                             txsBlobLength = ReadBigEndianUInt32(reader);
-                                                            logger.Debug(() => $"txsBlobLength: {txsBlobLength}");
+                                                            logger.Trace(() => $"txsBlobLength: {txsBlobLength}");
                                                             txsBlob = reader.ReadBytes((int)txsBlobLength);
-                                                            logger.Debug(() => $"txsBlob: {txsBlob.ToHexString()}");
+                                                            logger.Trace(() => $"txsBlob: {txsBlob.ToHexString()}");
 
                                                             targetLength = ReadBigEndianUInt32(reader);
-                                                            logger.Debug(() => $"targetLength: {targetLength}");
+                                                            logger.Trace(() => $"targetLength: {targetLength}");
                                                             targetBlob = reader.ReadBytes((int)targetLength);
-                                                            logger.Debug(() => $"targetBlob: {targetBlob.ToHexString()}");
+                                                            logger.Trace(() => $"targetBlob: {targetBlob.ToHexString()}");
 
                                                             height = ReadBigEndianUInt32(reader);
 
@@ -464,11 +464,11 @@ public class AlephiumJobManager : JobManagerBase<AlephiumJob>
                 if (version == AlephiumConstants.MiningProtocolVersion && messageType == AlephiumConstants.SubmitResultMessageType)
                 {
                     logger.Debug(() => $"[Submit Block] - Response received :D");
-                    startOffset = AlephiumConstants.MessageHeaderSize + 1; // 1 byte message type
+                    startOffset = AlephiumConstants.MessageHeaderSize + 2;
                     message = new byte[receivedBytes - startOffset];
                     Buffer.BlockCopy(receiveBuffer, startOffset, message, 0, receivedBytes - startOffset);
 
-                    succeed = message[8] == 1;
+                    succeed = message[40] == 1;
                     break;
                 }
             }
