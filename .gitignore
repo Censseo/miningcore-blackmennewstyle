@@ -14,6 +14,8 @@ build.backup/
 *.VC.db
 *.VC.opendb
 
+config.json
+
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
 
@@ -213,3 +215,47 @@ fabric.properties
 /*/*/*/*/*/*/*/*/*.o
 /*/*/*/*/*/*/*/*/*/*.o
 /*/*/*/*/*/*/*/*/*/*.o
+
+.claude
+CLAUDE.md
+AGENTS.md
+
+.build-marker
+
+#############
+## Docker & Secrets
+#############
+
+# Environment files (contain sensitive credentials)
+.env
+.env.*
+!.env.example
+
+# Docker secrets
+secrets/
+*.secret
+
+# Docker override files (may contain local configurations)
+docker-compose.override.yml
+docker-compose.*.local.yml
+
+# Kubernetes secrets
+*.key
+*.pem
+*.crt
+*.cer
+*.p12
+
+# Database dumps and backups
+*.sql.gz
+*.dump
+*.backup
+
+# Pool configuration files (may contain API keys)
+config.json
+config2.json
+**/config.local.json
+
+# Database initialization scripts (keep examples, ignore actual configs)
+db/pools/*.sql
+!db/pools/*.sql.example

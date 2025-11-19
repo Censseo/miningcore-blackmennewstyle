@@ -67,13 +67,17 @@ OBJECTS = exports.o \
 	\
 	xmrig/3rdparty/libethash/keccakf800.o
 
+DEPS = $(OBJECTS:.o=.d)
+
 
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
+-include $(DEPS)
+
 .PHONY: clean
 
 clean:
-	$(RM) $(TARGET) $(OBJECTS)
+	$(RM) $(TARGET) $(OBJECTS) $(DEPS)

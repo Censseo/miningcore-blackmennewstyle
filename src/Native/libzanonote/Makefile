@@ -23,12 +23,16 @@ OBJECTS = exports.o \
 	currency_core/genesis.o \
 	currency_core/genesis_acc.o 
 
+DEPS = $(OBJECTS:.o=.d)
+
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
+-include $(DEPS)
+
 .PHONY: clean
 
 clean:
-	$(RM) $(TARGET) $(OBJECTS)
+	$(RM) $(TARGET) $(OBJECTS) $(DEPS)

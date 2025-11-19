@@ -10,6 +10,8 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS)
 	$(CC) $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
+-include $(DEPS)
+
 .PHONY: clean
 
 clean:

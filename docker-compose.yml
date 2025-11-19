@@ -1,0 +1,150 @@
+services:
+  db:
+    build:
+      context: .
+      dockerfile: ./db/Dockerfile
+    image: miningcore-dev-db:${VERSION:-latest}
+    container_name: miningcore-dev-db
+    restart: unless-stopped
+    networks:
+      - internal
+    # Security: Do not expose database port to host in production
+    # Uncomment only if you need direct database access for debugging
+    # ports:
+    #   - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-miningcore}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-miningcore}
+      POSTGRES_DB: ${POSTGRES_DB:-miningcore}
+    volumes:
+      - miningcore-data:/var/lib/postgresql/data
+    configs:
+      - source: db-init-script
+        target: /docker-entrypoint-initdb.d/init-user-db.sh
+        mode: 0555
+      # Optional: Uncomment to enable pool partitions (create db/pools/createdb_shares.sql first)
+      # - source: db-pool-partitions
+      #   target: /pools/createdb_shares.sql
+      #   mode: 0444
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-miningcore} -d ${POSTGRES_DB:-miningcore}"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Miningcore service
+  miningcore:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: miningcore:${VERSION:-latest}
+    container_name: miningcore
+    restart: unless-stopped
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+    configs:
+      - source: miningcore-config
+        target: /app/config.json
+        mode: 0444
+    environment:
+      CONFIG_PATH: /app/config.json
+    ports:
+      - "3032:3032"  # Stratum port (example)
+      - "4000:4000"  # API port
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/api/pools"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # Production-like stratum server (main)
+  # stratum-main:
+  #   image: miningcore:latest
+  #   container_name: miningcore-stratum-main
+  #   restart: unless-stopped
+  #   networks:
+  #     - internal
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   configs:
+  #     - source: main-config
+  #       target: /config.json
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:4000/api/pools"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 40s
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '4'
+  #         memory: 4G
+
+  # Stratum relay servers (for distributed architecture)
+  # stratum-relay:
+  #   image: miningcore:latest
+  #   container_name: miningcore-stratum-relay-1
+  #   restart: unless-stopped
+  #   networks:
+  #     - internal
+  #   configs:
+  #     - source: relay-config
+  #       target: /config.json
+  #   ports:
+  #     - "3056:3056"  # Stratum mining port
+  #     - "6000:6000"  # ShareRelay port
+  #   deploy:
+  #     replicas: 1
+  #     resources:
+  #       limits:
+  #         cpus: '2'
+  #         memory: 2G
+
+networks:
+  internal:
+    driver: bridge
+    attachable: true
+
+volumes:
+  miningcore-data:
+    driver: local
+
+configs:
+  db-init-script:
+    file: ./db/init-user-db.sh
+
+  miningcore-config:
+    file: ./example/alephium_pool.json
+
+  # Optional: Add pool partition scripts
+  # db-pool-partitions:
+  #   file: ./db/pools/createdb_shares.sql
+
+  # Optional: Additional stratum server configs
+  # main-config:
+  #   file: ./configs/main-config.json
+  # relay-config:
+  #   file: ./configs/relay-config.json

@@ -1,0 +1,99 @@
+# syntax=docker/dockerfile:1
+
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:8.0.401-bookworm-slim AS builder
+
+WORKDIR /miningcore
+
+# Install build dependencies
+RUN apt update && export DEBIAN_FRONTEND=noninteractive \
+    && apt -y --no-install-recommends install \
+    build-essential \
+    clang \
+    cmake \
+    git \
+    libc++-dev \
+    libboost-all-dev \
+    libgmp-dev \
+    libsodium-dev \
+    libssl-dev \
+    libzmq3-dev \
+    libzmq5-dev \
+    ninja-build \
+    pkg-config \
+    zlib1g-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy libs directory (contains WebSocketManager, ZeroMQ DLLs)
+COPY libs/ ./libs/
+
+# Copy project files for better layer caching
+COPY src/Miningcore/*.csproj ./src/Miningcore/
+COPY src/Miningcore.Tests/*.csproj ./src/Miningcore.Tests/
+
+# Restore dependencies
+RUN dotnet restore src/Miningcore/Miningcore.csproj
+
+# Copy source code
+COPY src/ ./src/
+
+# Initialize fake git repo for GitVersion (required by build)
+RUN git init && \
+    git config user.email "builder@docker" && \
+    git config user.name "Docker Builder" && \
+    git add -A && \
+    git commit -m "Docker build" || true
+
+# Build native libraries first (required for Miningcore)
+WORKDIR /miningcore/src/Miningcore
+RUN chmod +x build-libs-linux.sh && \
+    mkdir -p /usr/local/miningcore && \
+    ./build-libs-linux.sh /usr/local/miningcore
+
+# Build the .NET application
+RUN dotnet publish -c Release --framework net8.0 --no-restore -o /usr/local/miningcore/
+
+# Final image
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim
+
+LABEL maintainer="miningcore" \
+      description="Miningcore - High-performance multi-coin mining pool server (Debian Slim)" \
+      version="1.0" \
+      org.opencontainers.image.source="https://github.com/oliverw/miningcore"
+
+WORKDIR /miningcore
+
+# Install runtime dependencies (only runtime packages, no -dev) and create non-root user
+RUN apt update && export DEBIAN_FRONTEND=noninteractive \
+    && apt -y --no-install-recommends install \
+    apt-transport-https \
+    curl \
+    libboost-date-time1.74.0 \
+    libboost-system1.74.0 \
+    libsodium23 \
+    libssl3 \
+    libzmq5 \
+    openssl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r miningcore --gid=1000 \
+    && useradd -r -g miningcore --uid=1000 --home-dir=/miningcore --shell=/sbin/nologin miningcore
+
+# Copy application from builder
+COPY --from=builder --chown=miningcore:miningcore /usr/local/miningcore/ /miningcore/
+
+# Switch to non-root user
+USER miningcore
+
+# Configuration path (can be overridden)
+ENV CONFIG_PATH=/config.json
+
+# Expose ShareRelay port
+EXPOSE 6000/tcp
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl --fail http://localhost:4000/api/pools || exit 1
+
+ENTRYPOINT ["sh", "-c", "dotnet /miningcore/Miningcore.dll -c ${CONFIG_PATH}"]

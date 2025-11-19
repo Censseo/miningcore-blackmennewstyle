@@ -1,0 +1,76 @@
+# Git and version control
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build outputs
+**/bin/
+**/obj/
+**/build/
+**/out/
+**/publish/
+
+# Test results
+**/TestResults/
+**/*.trx
+
+# Documentation
+*.md
+!CLAUDE.md
+docs/
+examples/
+
+# Logs
+**/*.log
+logs/
+
+# Temporary files
+**/*.tmp
+**/*.bak
+**/*.cache
+*.pid
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.pfx
+*.key
+*.pem
+
+# Docker
+docker-compose.override.yml
+Dockerfile*
+!Dockerfile
+!Dockerfile.debian-slim
+.dockerignore
+
+# Database
+*.db
+*.sqlite
+*.db-shm
+*.db-wal
+
+# Package manager
+**/packages/
+**/node_modules/
+*.lock
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Build scripts (not needed in container)
+build-*.sh
+build-*.bat

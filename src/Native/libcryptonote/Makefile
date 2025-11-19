@@ -18,12 +18,16 @@ OBJECTS = exports.o \
         zephyr_oracle/pricing_record.o \
         salvium_oracle/pricing_record.o
 
+DEPS = $(OBJECTS:.o=.d)
+
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
+-include $(DEPS)
+
 .PHONY: clean
 
 clean:
-	$(RM) $(TARGET) $(OBJECTS)
+	$(RM) $(TARGET) $(OBJECTS) $(DEPS)

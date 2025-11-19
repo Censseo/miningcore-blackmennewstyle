@@ -25,25 +25,39 @@ OBJECTS = include/highwayhash/arch_specific.o include/highwayhash/c_bindings.o i
         include/libkeccak/libkeccak_unhex.o include/libkeccak/libkeccak_zerocopy_chunksize.o \
         include/libsais/libsais.o 
 
+DEPS = $(OBJECTS:.o=.d)
+
 ifeq ($(UNAME_P),x86_64)
         ifneq (,$(findstring -DHAVE_AVX2,$(HAVE_FEATURE)))
                 OBJECTS += include/highwayhash/hh_avx2.o 
+
+DEPS = $(OBJECTS:.o=.d)
         endif
         OBJECTS += include/highwayhash/hh_sse41.o 
+
+DEPS = $(OBJECTS:.o=.d)
 else ifneq ($($(UNAME_P),aarch64),$($(UNAME_P),arm64))
         OBJECTS += include/highwayhash/hh_neon.o 
+
+DEPS = $(OBJECTS:.o=.d)
 else
         OBJECTS += include/highwayhash/hh_vsx.o 
+
+DEPS = $(OBJECTS:.o=.d)
 endif
 
 OBJECTS += astro_aarch64.o astrobwtv3.o exports.o 
+
+DEPS = $(OBJECTS:.o=.d)
 
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
+-include $(DEPS)
+
 .PHONY: clean
 
 clean:
-	$(RM) $(TARGET) $(OBJECTS)
+	$(RM) $(TARGET) $(OBJECTS) $(DEPS)
