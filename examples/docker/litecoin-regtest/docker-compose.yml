@@ -1,0 +1,126 @@
+services:
+  # PostgreSQL Database
+  db:
+    build:
+      context: ../../../db
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-miningcore}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-miningcore}
+    volumes:
+      - litecoin-regtest-db:/var/lib/postgresql/data
+      - ../../../src/Miningcore/Persistence/Postgres/Scripts/createdb.sql:/miningcore/createdb.sql:ro
+      - ../../../src/Miningcore/Persistence/Postgres/Scripts/createdb_postgresql_11_appendix.sql:/miningcore/createdb_postgresql_11_appendix.sql:ro
+    networks:
+      - litecoin-regtest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-miningcore}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Litecoin Node (regtest mode)
+  litecoind:
+    image: uphold/litecoin-core:0.21
+    command:
+      - litecoind
+      - -regtest
+      - -server
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=0.0.0.0/0
+      - -rpcuser=${LTC_RPC_USER:-litecoin}
+      - -rpcpassword=${LTC_RPC_PASSWORD:-litecoin}
+      - -zmqpubhashblock=tcp://0.0.0.0:28332
+      - -zmqpubrawtx=tcp://0.0.0.0:28333
+      - -txindex=1
+      - -printtoconsole
+      - -debug=rpc
+    volumes:
+      - litecoin-regtest-data:/home/litecoin/.litecoin
+    networks:
+      - litecoin-regtest
+    healthcheck:
+      test: ["CMD-SHELL", "litecoin-cli -regtest -rpcuser=$${LTC_RPC_USER:-litecoin} -rpcpassword=$${LTC_RPC_PASSWORD:-litecoin} getblockchaininfo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Miningcore Pool
+  miningcore:
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    environment:
+      CONFIG_PATH: /config.json
+    configs:
+      - source: miningcore-config
+        target: /config.json
+    depends_on:
+      db:
+        condition: service_healthy
+      litecoind:
+        condition: service_healthy
+    ports:
+      - "${STRATUM_PORT:-3033}:3033"
+      - "${API_PORT:-4001}:4000"
+    networks:
+      - litecoin-regtest
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/api/pools"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # pgAdmin (Optional - for database inspection)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@miningcore.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_LISTEN_PORT: 5050
+    ports:
+      - "${PGADMIN_PORT:-5051}:5050"
+    networks:
+      - litecoin-regtest
+    profiles:
+      - debug
+    depends_on:
+      - db
+
+networks:
+  litecoin-regtest:
+    driver: bridge
+
+volumes:
+  litecoin-regtest-db:
+  litecoin-regtest-data:
+
+configs:
+  miningcore-config:
+    file: ./config.json

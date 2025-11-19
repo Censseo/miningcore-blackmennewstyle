@@ -56,10 +56,10 @@ services:
         condition: service_healthy
     configs:
       - source: miningcore-config
-        target: /app/config.json
+        target: /config.json
         mode: 0444
     environment:
-      CONFIG_PATH: /app/config.json
+      CONFIG_PATH: /config.json
     ports:
       - "3032:3032"  # Stratum port (example)
       - "4000:4000"  # API port
